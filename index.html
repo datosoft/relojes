@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laboratorio de relojes lógicos de Lamport</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f5fa;--surf:#fff;--surf2:#f8fafc;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--acc:#4f46e5;--ok:#047857;--okbg:#d1fae5;--warn:#dc2626;--warnbg:#fee2e2;--mid:#b45309;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1020;--surf:#131a2e;--surf2:#18213a;--ink:#e2e8f0;--mut:#94a3b8;--line:#263252;--acc:#818cf8;--ok:#34d399;--okbg:#0b3d2e;--warn:#f87171;--warnbg:#4a1f1f;--mid:#fbbf24;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b1020;--surf:#131a2e;--surf2:#18213a;--ink:#e2e8f0;--mut:#94a3b8;--line:#263252;--acc:#818cf8;--ok:#34d399;--okbg:#0b3d2e;--warn:#f87171;--warnbg:#4a1f1f;--mid:#fbbf24;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.5 Inter,system-ui,sans-serif;background-image:radial-gradient(1000px 400px at 90% -120px,color-mix(in srgb,var(--acc) 18%,transparent),transparent 70%)}
+.wrap{max-width:1280px;margin:0 auto;padding:18px 16px 60px}
+h1{font-size:clamp(24px,4vw,36px);font-weight:800;letter-spacing:-.02em;margin:8px 0 6px;background:linear-gradient(90deg,var(--ink),var(--acc));-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-size:15px;font-weight:700;margin:0 0 10px}
+.sub{color:var(--mut);max-width:72ch;margin:0}
+header.top{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.hbtns{display:flex;gap:8px;flex-wrap:wrap}
+button,select,input{font:600 13px Inter,system-ui,sans-serif;color:var(--ink)}
+button{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:7px 12px;cursor:pointer;transition:border-color .15s,transform .1s}
+button:hover{border-color:var(--acc)}button:active{transform:translateY(1px)}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+button.main,button[aria-pressed="true"]{background:var(--acc);color:#fff;border-color:transparent}
+select,input[type=number]{background:var(--surf2);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+.lbl{color:var(--mut);font-size:12.5px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.live{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;padding:4px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surf);color:var(--mut)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--mut)}
+.live.on{color:var(--ok)}.live.on i{background:var(--ok);animation:pu 1.6s infinite}
+@keyframes pu{70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.toolbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);padding:8px 0;margin:12px 0 0}
+.mc{display:inline-flex;gap:6px;align-items:baseline;border:1px solid var(--c);color:var(--c);border-radius:999px;padding:2px 10px;font-weight:600;font-size:12.5px}
+.mc b{color:var(--ink);font-size:15px;font-variant-numeric:tabular-nums}
+.net{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--okbg);color:var(--ok)}
+.net.mid{background:color-mix(in srgb,var(--mid) 18%,transparent);color:var(--mid)}
+.net.bad{background:var(--warnbg);color:var(--warn)}
+.cd{color:var(--mut);font-size:12px;font-variant-numeric:tabular-nums}
+.toolbar nav{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.toolbar nav button{padding:4px 10px;font-size:12px;border-radius:999px}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--mut)}
+.fld b{color:var(--ink)}
+input[type=range]{accent-color:var(--acc)}
+.chk{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--mut);margin:3px 14px 3px 0}
+.chk input{accent-color:var(--acc)}
+.autog{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;margin-top:6px}
+.status{min-height:22px;font-weight:600;margin:8px 0 0}
+.clocks{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:14px 0}
+.clock{background:var(--surf);border:1px solid var(--line);border-top:4px solid var(--c);border-radius:16px;padding:14px;box-shadow:0 10px 24px -20px var(--c)}
+.clock .who{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.05em;min-height:18px}
+.pn{font-weight:700;color:var(--c);margin-top:2px}
+.num{font-size:clamp(42px,5.5vw,62px);font-weight:800;letter-spacing:-.04em;line-height:1.05;font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin:6px 0 8px}
+.bar i{display:block;height:100%;width:0;background:var(--c);border-radius:4px;transition:width .4s}
+.meta,.vec{font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.lead{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--ink);color:var(--surf)}
+.row2{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}.row2 button{padding:4px 9px;font-size:12px}
+.clock.bump .num{animation:b .35s}@keyframes b{50%{transform:scale(1.07)}}
+.dwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surf2)}
+svg text{font:12px Inter,system-ui,sans-serif;fill:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12.5px;color:var(--mut)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.feed{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:3px;font-size:12.5px;color:var(--mut)}
+.feed li{display:flex;gap:10px;padding:3px 0;border-top:1px dashed var(--line)}.feed li:first-child{color:var(--ink);font-weight:600;border-top:0}
+.feed time{width:52px;flex:none;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:14px 0}
+.stat{background:var(--surf);border:1px solid var(--line);border-radius:14px;padding:12px 14px;border-left:4px solid var(--c,var(--acc))}
+.stat b{display:block;font-size:26px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat span{font-size:12.5px;color:var(--mut)}
+.det{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.det div{background:var(--surf2);border-radius:10px;padding:8px 10px;color:var(--mut);font-size:12px}
+.det b{display:block;font-size:22px;color:var(--ink)}
+.scroll{max-height:300px;overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+th{text-align:left;color:var(--mut);font-weight:600;padding:5px 6px;position:sticky;top:0;background:var(--surf)}
+td{padding:5px 6px;border-top:1px solid var(--line);white-space:nowrap}
+.mx td,.mx th{text-align:center}.mx td{font-weight:700}.dim{color:var(--mut)}
+.sy{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:12.5px}
+.badge{float:right;background:var(--okbg);color:var(--ok);font-weight:600;padding:2px 8px;border-radius:999px;font-size:11.5px}
+.badge.bad{background:var(--warnbg);color:var(--warn)}
+.rules{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.rule{border-left:4px solid var(--c);padding-left:12px}
+.rule code{display:block;font:700 17px ui-monospace,Menlo,monospace;margin:4px 0}
+.rule span{color:var(--mut);font-size:12.5px}
+.ms{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:6px}
+.ms li{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
+.ms li.ok{background:var(--okbg);border-color:transparent}
+.pg{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:8px}.pg i{display:block;height:100%;width:0;background:var(--ok);transition:width .4s}
+.fb{min-height:20px;font-weight:600;margin:8px 0 2px}.fb.ok{color:var(--ok)}.fb.bad{color:var(--warn)}
+.qx{font-size:16px;font-weight:600;margin:0 0 10px}
+details{border-top:1px solid var(--line);padding:8px 0}details:first-of-type{border-top:0;padding-top:0}
+summary{cursor:pointer;font-weight:600}details p{color:var(--mut);margin:6px 0 0}
+kbd{font:600 11px Inter,sans-serif;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:var(--surf2)}
+.empty{color:var(--mut);margin:0}
+#cg .sel,#dg .sel{cursor:pointer}
+.legend i,.dot{vertical-align:middle}
+@media (max-width:1000px){.stats{grid-template-columns:repeat(2,1fr)}.grid3{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){.grid2,.grid3,.rules{grid-template-columns:1fr}.toolbar nav{margin-left:0}.autog{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <span class="live on" id="live"><i></i><span id="liveT">Sistema autónomo activo</span></span>
+      <h1>Laboratorio de relojes lógicos de Lamport</h1>
+      <p class="sub">Clientes y servidores se envían mensajes con relojes lógicos. Observa cómo corre solo, agrega procesos, haz clic en un evento para ver su causalidad o rompe la regla y compara.</p>
+    </div>
+    <div class="hbtns"><button class="main" id="bAutoAll" aria-pressed="true">Autónomo: activo</button><button id="bPause" aria-pressed="false">Pausar</button><button id="bTheme">Tema</button><button id="bCsv">Exportar CSV</button><button id="bClear">Borrar datos guardados</button></div>
+  </header>
+
+  <div class="toolbar">
+    <div id="mini" class="row" style="margin:0;gap:6px"></div>
+    <span class="net" id="net"></span><span class="cd" id="cd"></span><span class="cd" id="sv"></span>
+    <nav aria-label="Ir a una sección"><button data-go="diagrama">Diagrama</button><button data-go="estadisticas">Estadísticas</button><button data-go="misiones">Misiones</button><button data-go="bitacora">Bitácora</button></nav>
+  </div>
+
+  <div class="grid3" style="margin-top:14px">
+    <section class="card">
+      <h2>Procesos y mensajes</h2>
+      <div class="row"><button id="addC">+ Cliente</button><button id="addS">+ Servidor</button><button id="rmP">− Quitar último</button></div>
+      <p class="lbl" style="margin:0 0 10px"><span id="pcount"></span>. Cambiar la cantidad reinicia la sesión.</p>
+      <div class="row"><select id="from" aria-label="Origen"></select><span class="lbl">→</span><select id="to" aria-label="Destino"></select><button id="bSend">Enviar</button></div>
+      <div class="row"><button id="bBc">Servidor difunde</button><button id="bAuto" aria-pressed="false">Sincronizar cada 6 s</button></div>
+      <div class="row"><select id="scn" aria-label="Escenario"><option value="chain">Cadena causal</option><option value="conc">Eventos concurrentes</option><option value="diff">Difusión</option><option value="cross">Mensajes cruzados</option></select><button id="bScn">Ejecutar</button><button id="bReset">Nueva sesión</button></div>
+      <p class="status" id="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>Modo autónomo</h2>
+      <div class="row"><label class="lbl">Intensidad <select id="inten"><option value="calm">Tranquila</option><option value="norm" selected>Normal</option><option value="hot">Intensa</option></select></label></div>
+      <div class="autog">
+        <label class="chk"><input type="checkbox" id="fTraffic" checked> Tráfico aleatorio</label>
+        <label class="chk"><input type="checkbox" id="fChaos" checked> Red caótica</label>
+        <label class="chk"><input type="checkbox" id="fPart" checked> Particiones</label>
+        <label class="chk"><input type="checkbox" id="fDrift" checked> Saltos de reloj</label>
+        <label class="chk"><input type="checkbox" id="fScn" checked> Escenarios</label>
+        <label class="chk"><input type="checkbox" id="fInit" checked> Contadores iniciales aleatorios</label>
+        <label class="chk"><input type="checkbox" id="fRestart" checked> Nueva sesión cada 150 s</label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Red y reloj</h2>
+      <div class="grid3" style="grid-template-columns:1fr 1fr;margin:0 0 10px;gap:10px">
+        <label class="fld">Latencia: <b id="latV">1100 ms</b><input type="range" id="lat" min="200" max="4000" step="100" value="1100"></label>
+        <label class="fld">Pérdida: <b id="lossV">0 %</b><input type="range" id="loss" min="0" max="60" step="5" value="0"></label>
+        <label class="fld">Zoom: <b id="zV">36 px/s</b><input type="range" id="zoom" min="20" max="80" step="4" value="36"></label>
+        <label class="fld">Avance automático<select id="tickMs"><option value="500">Cada 0,5 s</option><option value="1000" selected>Cada 1 s</option><option value="2000">Cada 2 s</option></select></label>
+      </div>
+      <div class="row" style="margin-bottom:6px"><label class="chk"><input type="checkbox" id="jit"> Latencia variable</label><label class="chk"><input type="checkbox" id="showTick"> Mostrar avances</label><label class="chk"><input type="checkbox" id="brk"> Romper la regla</label><label class="chk"><input type="checkbox" id="showVec"> Vectores</label></div>
+      <div class="row"><span class="lbl">Red:</span><button data-pre="ideal">Ideal</button><button data-pre="lenta">Lenta</button><button data-pre="mala">Inestable</button></div>
+      <p class="lbl" style="margin:8px 0 0">Atajos: <kbd>1</kbd>…<kbd>8</kbd> evento local · <kbd>Espacio</kbd> pausar · <kbd>M</kbd> modo autónomo</p>
+    </section>
+  </div>
+
+  <div class="clocks" id="clocks"></div>
+
+  <section class="card" id="diagrama">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Diagrama espacio-tiempo</h2><span class="lbl">Clic: ver causalidad · Mayús + clic: comparar</span></div>
+    <div class="dwrap" id="dg"></div>
+    <div class="legend">
+      <span>● envío</span><span>◯ recepción</span><span>■ evento local</span><span>→ mensaje con marca T</span><span style="color:var(--warn)">✕ mensaje perdido</span>
+    </div>
+    <ul class="feed" id="feed" aria-label="Narrador en vivo"></ul>
+  </section>
+
+  <div class="stats" id="estadisticas">
+    <div class="stat" style="--c:var(--ok)"><b id="sMsg">0</b><span>Mensajes entregados</span></div>
+    <div class="stat" style="--c:var(--warn)"><b id="sLost">0</b><span>Mensajes perdidos</span></div>
+    <div class="stat" style="--c:var(--acc)"><b id="sDiff">0</b><span>Diferencia actual</span></div>
+    <div class="stat" style="--c:var(--mid)"><b id="sMax">0</b><span>Diferencia máxima</span></div>
+    <div class="stat" style="--c:var(--ok)"><b id="sOk">—</b><span>Entregas en orden causal</span></div>
+    <div class="stat" style="--c:var(--acc)"><b id="sRate">0</b><span>Eventos en el último minuto</span></div>
+    <div class="stat" style="--c:var(--mid)"><b id="sLat">—</b><span>Latencia media</span></div>
+    <div class="stat" style="--c:var(--warn)"><b id="sLoss">—</b><span>Pérdida real</span></div>
+    <div class="stat" style="--c:var(--acc)"><b id="sPart">0</b><span>Particiones de red</span></div>
+    <div class="stat" style="--c:var(--mid)"><b id="sDrift">0</b><span>Saltos de reloj</span></div>
+  </div>
+
+  <div class="grid2">
+    <section class="card"><h2>Causalidad</h2><div id="det"></div></section>
+    <section class="card"><h2>Orden total (L y luego proceso)</h2><div class="scroll" style="max-height:260px"><table><thead><tr><th>#</th><th>L</th><th>Proceso</th><th>Evento</th><th>Vector</th><th>Relación</th></tr></thead><tbody id="tot"></tbody></table></div></section>
+  </div>
+  <div class="grid2">
+    <section class="card"><h2>Evolución de los contadores</h2><div id="ch"></div></section>
+    <section class="card"><h2>Matriz de tráfico (entregados / enviados)</h2><div id="mx"></div></section>
+  </div>
+  <div class="grid2">
+    <section class="card"><h2>Mensajes</h2><div class="scroll" id="sy"></div></section>
+    <section class="card" id="misiones"><h2>Misiones</h2><p class="lbl" id="mp" style="margin:0"></p><div class="pg"><i id="pgb"></i></div><ul class="ms" id="ms"></ul></section>
+  </div>
+
+  <section class="card" style="margin:14px 0">
+    <h2>Reglas de Lamport</h2>
+    <div class="rules">
+      <div class="rule" style="--c:var(--p0,var(--acc))"><b>Evento local o envío</b><code>L = L + 1</code><span>Cada evento propio avanza el reloj. El mensaje viaja con esa marca T.</span></div>
+      <div class="rule" style="--c:var(--mid)"><b>Recepción de un mensaje con marca T</b><code>L = máx(L, T) + 1</code><span>El receptor nunca queda por detrás del emisor.</span></div>
+      <div class="rule" style="--c:var(--ok)"><b>Garantía</b><code>a → b ⇒ L(a) &lt; L(b)</code><span>Lo inverso no siempre se cumple: dos eventos concurrentes pueden tener cualquier orden de marcas.</span></div>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section class="card">
+      <h2>Reto: predice el reloj</h2>
+      <p class="qx" id="qt"></p>
+      <div class="row"><input id="qa" type="number" inputmode="numeric" aria-label="Tu respuesta" style="width:96px"><button class="main" id="qb">Comprobar</button><button id="qn">Otra pregunta</button></div>
+      <p class="fb" id="qf" aria-live="polite"></p>
+      <p class="lbl" id="qs" style="margin:0">Aún no has respondido.</p>
+    </section>
+    <section class="card">
+      <h2>Preguntas frecuentes</h2>
+      <details><summary>¿Por qué se usa máx(L, T) + 1?</summary><p>Así la recepción siempre queda después del envío. El receptor adopta el mayor valor que conoce y suma uno. Activa «Romper la regla» para ver qué falla.</p></details>
+      <details><summary>¿Qué significa que dos eventos sean concurrentes?</summary><p>Que ninguno pudo influir en el otro, porque no hay una cadena de mensajes entre ellos. Con L no se distingue de «anterior»; un reloj vectorial sí lo hace.</p></details>
+      <details><summary>¿Qué pasa con una partición de red?</summary><p>Los procesos aislados no reciben marcas nuevas. El orden causal de lo que sí ocurrió se conserva, pero sus contadores se separan hasta que la red vuelve.</p></details>
+    </section>
+  </div>
+
+  <section class="card" id="causal" style="margin:14px 0">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Mapa de causalidad</h2><span class="lbl">Eje horizontal: marca de Lamport L · clic en un evento para ver su pasado y su futuro</span></div>
+    <div class="dwrap" id="cg"></div>
+    <div class="legend"><span><i class="dot" style="background:var(--acc)"></i>pasado causal</span><span><i class="dot" style="background:var(--mid)"></i>futuro causal</span><span><i class="dot" style="background:var(--mut)"></i>concurrente (atenuado)</span><span>→ mensaje</span><span>— orden local del proceso</span></div>
+  </section>
+  <section class="card" id="bitacora" style="margin-top:14px">
+    <h2>Bitácora</h2>
+    <div class="scroll"><table><thead><tr><th>Tiempo</th><th>Proceso</th><th>Evento</th><th>Cálculo</th><th>Reloj</th><th>Dif.</th></tr></thead><tbody id="lg"></tbody></table></div>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const COL=["#0e7c86","#5b4bb7","#b45309","#c2185b","#2e7d32","#1565c0","#6d4c41","#00838f"];
+const LAN=72,Y=i=>52+i*LAN;
+const rnd=(a,b)=>a+Math.random()*(b-a),ri=(a,b)=>Math.floor(rnd(a,b+1)),pick=a=>a[Math.floor(Math.random()*a.length)];
+const hb=(a,b)=>a!==b&&a.V.every((x,k)=>x<=(b.V[k]||0));
+let kinds=["C","S","C"],P=[],ev=[],msgs=[],n=0,gen=0,paused=false,t0=Date.now(),sel=null,sel2=null,maxD=0,delivered=0,okN=0,lostN=0,partN=0,driftN=0,down=null,feed=[],rS=150,doneM=new Set(),pend=false,A={on:true},TM={};
+const now=()=>(Date.now()-t0)/1000;
+const spread=()=>P.length?Math.max(...P.map(p=>p.L))-Math.min(...P.map(p=>p.L)):0;
+const idx=k=>P.reduce((a,p,i)=>(p.kind===k&&a.push(i),a),[]);
+const cls=()=>idx("C"),srvs=()=>idx("S");
+const cut=(a,b)=>!!down&&((down[0]===a&&down[1]===b)||(down[0]===b&&down[1]===a));
+
+function sched(){if(!pend){pend=true;requestAnimationFrame(()=>{pend=false;render()})}}
+function status(t){$("status").textContent=t;feed.unshift({t:now(),x:t});feed=feed.slice(0,6);$("feed").innerHTML=feed.map(f=>`<li><time>${f.t.toFixed(1)} s</time><span>${f.x}</span></li>`).join("");sched()}
+function bump(i){const el=$("ck"+i);if(el){el.classList.remove("bump");void el.offsetWidth;el.classList.add("bump")}}
+function rec(p,kind,txt,calc){const d=spread();if(d>maxD)maxD=d;const e={i:ev.length,p,kind,txt,calc,L:P[p].L,V:[...P[p].V],t:now(),d,peer:null};ev.push(e);sched();return e}
+function local(p){if(p>=P.length)return;P[p].L++;P[p].V[p]++;rec(p,"local","Evento local",(P[p].L-1)+" + 1");bump(p);status(`Evento local de ${P[p].name}: L = ${P[p].L}`)}
+function drift(){const p=ri(0,P.length-1),k=ri(5,30),a=P[p].L;P[p].L+=k;P[p].V[p]++;rec(p,"local","Salto de reloj (deriva)",a+" + "+k);driftN++;bump(p);status(`Deriva: el reloj de ${P[p].name} salta de ${a} a ${P[p].L}`)}
+function tick(){if(paused)return;P.forEach((p,i)=>{p.L++;p.V[i]++;rec(i,"tick","Avance automático",(p.L-1)+" + 1")})}
+function setTick(){clearInterval(TM.k);TM.k=setInterval(tick,+$("tickMs").value)}
+
+function send(from,to){
+  if(from===to||from>=P.length||to>=P.length)return Promise.resolve(null);
+  const g=gen;P[from].L++;P[from].V[from]++;
+  const e=rec(from,"send","Envía a "+P[to].name,(P[from].L-1)+" + 1");e.peer=to;bump(from);
+  const base=+$("lat").value,lat=$("jit").checked?base*rnd(.5,1.5):base;
+  const lost=cut(from,to)||Math.random()*100<+$("loss").value;
+  const m={id:++n,from,to,T:P[from].L,V:[...P[from].V],sE:e.i,tS:e.t,eta:e.t+lat/1000,state:"fly",lost,lat};
+  msgs.push(m);status(`${P[from].name} envía el mensaje #${m.id} a ${P[to].name} con T = ${m.T}`);
+  return new Promise(res=>setTimeout(()=>{
+    if(g!==gen)return res(null);
+    if(lost){m.state="lost";lostN++;status(`El mensaje #${m.id} se perdió en la red`);return res(null)}
+    const a=P[to].L,bk=$("brk").checked;
+    P[to].L=bk?a+1:Math.max(a,m.T)+1;
+    P[to].V=P[to].V.map((x,k)=>Math.max(x,m.V[k]||0));P[to].V[to]++;
+    const r=rec(to,"recv","Recibe de "+P[from].name,bk?a+" + 1 (ignora T)":`máx(${a}, ${m.T}) + 1`);r.peer=from;bump(to);
+    Object.assign(m,{state:"done",rE:r.i,rL:r.L,ok:m.T<r.L});delivered++;if(m.ok)okN++;
+    status(`Mensaje #${m.id} entregado: ${P[to].name} queda en L = ${r.L}${m.ok?"":". Aviso: su reloj quedó por debajo de T"}`);res(m)
+  },lat));
+}
+function bcastFrom(s){P.forEach((_,j)=>{if(j!==s)send(s,j)})}
+function bcast(){const s=srvs()[0];if(s===undefined)status("No hay servidores en esta sesión.");else bcastFrom(s)}
+async function sync(c){const s=srvs().sort((a,b)=>Math.abs(a-c)-Math.abs(b-c))[0];if(s===undefined){status("Necesitas al menos un servidor para sincronizar.");return}const m=await send(c,s);if(m)await send(s,c)}
+
+/* ---------- Construcción de sesión ---------- */
+function build(){
+  gen++;let c=0,s=0;const N=kinds.length;
+  P=kinds.map(k=>({kind:k,name:k==="C"?"Cliente "+"ABCDEFGH"[c++]:"Servidor "+(++s),L:0,V:kinds.map(()=>0)}));
+  P.forEach(p=>{p.L=$("fInit").checked?ri(0,40):0});
+  ev=[];msgs=[];n=0;sel=sel2=null;t0=Date.now();maxD=0;delivered=okN=lostN=partN=driftN=0;down=null;feed=[];rS=150;doneM=new Set();
+  $("clocks").innerHTML=P.map((p,i)=>`<div class="clock" id="ck${i}" style="--c:${COL[i]}"><div class="who"><span>${p.kind==="C"?"Cliente":"Servidor"}</span><span class="lead" id="ld${i}" hidden>líder</span></div><div class="pn">${p.name}</div><div class="num" id="n${i}">0</div><div class="bar"><i id="b${i}"></i></div><div class="meta">Inicio ${p.L} · <span id="c${i}"></span> <span id="dl${i}"></span></div><div class="vec" id="v${i}"></div><div class="row2"><button data-act="loc" data-i="${i}">+ Evento</button>${p.kind==="C"?`<button data-act="sync" data-i="${i}">Sincronizar</button>`:`<button data-act="bc" data-i="${i}">Difundir</button>`}</div></div>`).join("");
+  $("from").innerHTML=$("to").innerHTML=P.map((p,i)=>`<option value="${i}">${p.name}</option>`).join("");
+  $("to").value=String(Math.min(1,N-1));
+  $("pcount").textContent=N+" procesos ("+cls().length+" clientes, "+srvs().length+" servidores)";
+  status("Nueva sesión con "+N+" procesos. Contadores iniciales: "+P.map(p=>p.L).join(", ")+".");
+  render();
+}
+function addP(k){if(kinds.length>=8)return status("Máximo 8 procesos.");kinds.push(k);build()}
+
+/* ---------- Motor autónomo ---------- */
+const fac=()=>({calm:1.8,norm:1,hot:.45})[$("inten").value];
+function randomStep(){
+  if(paused||P.length<2)return;
+  const r=Math.random(),N=P.length,a=ri(0,N-1);let b=ri(0,N-2);if(b>=a)b++;
+  if(r<.2)local(a);
+  else if(r<.6)send(a,b);
+  else if(r<.78){const c=cls();if(c.length)sync(pick(c))}
+  else if(r<.9)bcast();
+  else{local(a);setTimeout(()=>local(b),ri(80,300))}
+}
+function loopTraffic(){clearTimeout(TM.t);if(!A.on)return;if($("fTraffic").checked)randomStep();TM.t=setTimeout(loopTraffic,rnd(500,2200)*fac())}
+function setNet(l,x,j){$("lat").value=l;$("loss").value=x;$("jit").checked=j;$("latV").textContent=l+" ms";$("lossV").textContent=x+" %"}
+function chaosStep(){
+  const prof=pick([[300,0,false],[600,0,true],[1100,5,false],[1800,15,true],[2600,25,true],[3400,35,true],[800,10,false],[200,0,false]]);
+  const l=Math.min(4000,Math.max(200,Math.round((prof[0]+ri(-200,200))/100)*100));
+  setNet(l,prof[1],prof[2]);status(`Red caótica: latencia ${l} ms, pérdida ${prof[1]} %`);
+  const N=P.length;
+  if($("fPart").checked&&Math.random()<.35&&!down&&N>=2){
+    const a=ri(0,N-1);let b=ri(0,N-2);if(b>=a)b++;
+    const d=ri(4,9),g=gen;down=[a,b];partN++;status(`Partición: ${P[a].name} ↔ ${P[b].name} incomunicados ${d} s`);
+    setTimeout(()=>{if(g===gen&&down){down=null;status("Red restablecida")}},d*1000);
+  }
+  sched();
+}
+function loopChaos(){clearTimeout(TM.c);if(!A.on)return;if($("fChaos").checked&&!paused)chaosStep();TM.c=setTimeout(loopChaos,rnd(9000,18000)*fac())}
+function loopDrift(){clearTimeout(TM.d);if(!A.on)return;if($("fDrift").checked&&!paused&&Math.random()<.7)drift();TM.d=setTimeout(loopDrift,rnd(12000,26000)*fac())}
+function loopScn(){clearTimeout(TM.s);if(!A.on)return;if($("fScn").checked&&!paused)runScn(pick(Object.keys(SCN)),false);TM.s=setTimeout(loopScn,rnd(35000,65000)*fac())}
+function startAuto(){A.on=true;setTimeout(loopTraffic,300);setTimeout(loopChaos,1000);setTimeout(loopDrift,1700);setTimeout(loopScn,2400);uiAuto()}
+function stopAuto(){A.on=false;["t","c","d","s"].forEach(k=>clearTimeout(TM[k]));uiAuto()}
+function uiAuto(){const b=$("bAutoAll");b.setAttribute("aria-pressed",A.on);b.textContent=A.on?"Autónomo: activo":"Autónomo: pausado";$("live").classList.toggle("on",A.on);$("liveT").textContent=A.on?"Sistema autónomo activo":"Modo manual";status(A.on?"Modo autónomo activado.":"Modo manual: tú decides qué ocurre.")}
+function countdown(){const el=$("cd");if(A.on&&$("fRestart").checked&&!paused){if(--rS<=0)build();el.textContent="Nueva sesión en "+rS+" s"}else el.textContent=""}
+
+/* ---------- Escenarios ---------- */
+const SCN={
+  chain:["Cadena causal: cada proceso avisa al siguiente. Haz clic en el último evento para ver todo su pasado.",()=>{const N=P.length,st=[];for(let i=0;i<N-1;i++)st.push([i?600:0,()=>send(i,i+1)]);st.push([500,()=>local(N-1)]);return st}],
+  conc:["Eventos concurrentes: dos procesos avanzan sin mensajes entre ellos. Sus marcas L no implican orden causal.",()=>[[0,()=>local(0)],[250,()=>local(1)],[250,()=>local(0)],[250,()=>local(1)],[250,()=>local(0)]]],
+  diff:["Difusión: un servidor avisa a todos y cada receptor adopta el máximo de sus marcas.",()=>{const s=srvs();return s.length?[[0,()=>bcastFrom(s[0])],[1200,()=>bcastFrom(s[s.length>1?1:0])]]:[[0,()=>local(0)]]}],
+  cross:["Mensajes cruzados: con latencia variable, pueden llegar en un orden distinto al del envío.",()=>[[0,()=>send(0,1)],[150,()=>send(1,0)],[150,()=>send(0,1)],[150,()=>send(1,0)]]]
+};
+function runScn(k,reset){
+  if(reset)build();
+  const [txt,mk]=SCN[k];status(txt);const g=gen;let d=0;
+  mk().forEach(([w,f])=>{d+=w;setTimeout(()=>{if(g===gen)f()},d)});
+}
+
+/* ---------- Visualizaciones ---------- */
+function drawDiagram(){
+  const N=P.length,SE=sel!==null?ev[sel]:null,rel=e=>!SE?"":e===SE?"s":hb(e,SE)?"p":hb(SE,e)?"f":"c";
+  const T=now(),pps=+$("zoom").value,X=t=>120+t*pps,W=Math.max(X(T)+90,760),H=Y(N-1)+58,showT=$("showTick").checked,showV=$("showVec").checked;
+  let s=`<svg width="${W}" height="${H}" role="img" aria-label="Diagrama espacio-tiempo"><defs>${COL.map((c,i)=>`<marker id="ar${i}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="${c}"/></marker>`).join("")}</defs>`;
+  for(let k=0;k<=T+5;k+=5)s+=`<line x1="${X(k)}" y1="12" x2="${X(k)}" y2="${H-24}" stroke="var(--line)" stroke-dasharray="2 4"/><text x="${X(k)}" y="${H-8}" text-anchor="middle" style="fill:var(--mut)">${k} s</text>`;
+  for(let i=0;i<N;i++){const c=COL[i],y=Y(i);s+=`<rect x="0" y="${y-LAN/2+4}" width="${W}" height="${LAN-8}" rx="8" fill="${c}" opacity=".07"/><line x1="120" y1="${y}" x2="${W-6}" y2="${y}" stroke="${c}" stroke-width="2"/><text x="12" y="${y+5}" font-weight="700" style="fill:${c};font-size:13px">${P[i].name}</text>`}
+  if(down){const y1=Y(down[0]),y2=Y(down[1]);s+=`<line x1="${X(T)}" y1="${Math.min(y1,y2)}" x2="${X(T)}" y2="${Math.max(y1,y2)}" stroke="var(--warn)" stroke-width="3" stroke-dasharray="6 4"/>`}
+  msgs.slice(-80).forEach(m=>{
+    const x1=X(m.tS),y1=Y(m.from),y2=Y(m.to),gs=!SE||(rel(ev[m.sE])!=="c"&&(m.rE===undefined||rel(ev[m.rE])!=="c"));
+    let xe,ye;s+=`<g opacity="${gs?1:.18}">`;
+    if(m.state==="done"){const x2=X(ev[m.rE].t);xe=x2;ye=y2;s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${COL[m.from]}" stroke-width="1.9" marker-end="url(#ar${m.from})"/>`}
+    else{const f=Math.min(1,Math.max(0,(T-m.tS)/(m.eta-m.tS))),lc=m.state==="lost",fl=lc?Math.min(f,.55):f,x2=X(m.eta);xe=x1+(x2-x1)*fl;ye=y1+(y2-y1)*fl;
+      s+=`<line x1="${x1}" y1="${y1}" x2="${xe}" y2="${ye}" stroke="${lc?"var(--warn)":"var(--ink)"}" stroke-width="1.6" stroke-dasharray="5 4"/>`;
+      s+=lc?`<text x="${xe}" y="${ye+5}" text-anchor="middle" style="fill:var(--warn);font-size:16px;font-weight:700">✕</text>`:`<circle cx="${xe}" cy="${ye}" r="5" fill="var(--ink)"/>`}
+    s+=`<text x="${(x1+xe)/2}" y="${(y1+ye)/2-6}" text-anchor="middle" font-weight="600" style="paint-order:stroke;stroke:var(--surf2);stroke-width:4px">T=${m.T}</text></g>`;
+  });
+  ev.slice(-700).forEach(e=>{
+    if(e.kind==="tick"&&!showT)return;
+    const x=X(e.t),y=Y(e.p),c=COL[e.p],r=rel(e),op=r==="c"?.22:1,at=`class="sel" data-e="${e.i}" opacity="${op}"`;
+    const tip=`<title>${P[e.p].name} · ${e.t.toFixed(1)} s · ${e.txt} · L=${e.L} · V=[${e.V}]</title>`;
+    if(e.kind==="tick"){s+=`<circle cx="${x}" cy="${y}" r="2.5" fill="var(--mut)" opacity="${op}">${tip}</circle>`;return}
+    s+=e.kind==="local"?`<rect ${at} x="${x-6}" y="${y-6}" width="12" height="12" rx="2" fill="${e.txt.startsWith("Salto")?"var(--warn)":c}">${tip}</rect>`:e.kind==="send"?`<circle ${at} cx="${x}" cy="${y}" r="7" fill="${c}">${tip}</circle>`:`<circle ${at} cx="${x}" cy="${y}" r="7" fill="var(--surf)" stroke="${c}" stroke-width="3">${tip}</circle>`;
+    if(e.i===sel)s+=`<circle cx="${x}" cy="${y}" r="13" fill="none" stroke="var(--ink)" stroke-width="2"/>`;
+    if(e.i===sel2)s+=`<circle cx="${x}" cy="${y}" r="13" fill="none" stroke="var(--mid)" stroke-width="2" stroke-dasharray="3 3"/>`;
+    const up=e.kind==="local"?true:e.kind==="send"?e.peer>e.p:e.peer<e.p;
+    s+=`<text opacity="${op}" x="${x}" y="${y+(up?-16:26)}" text-anchor="middle" font-weight="700" style="fill:${c}">${showV?"["+e.V.join(",")+"]":e.L}</text>`;
+  });
+  s+="</svg>";
+  const dg=$("dg"),stick=dg.scrollLeft+dg.clientWidth>=dg.scrollWidth-40;dg.innerHTML=s;if(stick)dg.scrollLeft=dg.scrollWidth;
+}
+function cmp2(S){
+  const T=sel2!==null?ev[sel2]:null;
+  if(!T)return'<p class="lbl" style="margin:8px 0 0">Mayús + clic en otro evento para compararlo.</p>';
+  const A1=`${P[S.p].name} (L=${S.L})`,B1=`${P[T.p].name} (L=${T.L})`;
+  return`<p style="margin:8px 0 0"><b>Comparación:</b> ${hb(S,T)?A1+" ocurrió antes que "+B1+".":hb(T,S)?B1+" ocurrió antes que "+A1+".":A1+" y "+B1+" son concurrentes."}</p>`;
+}
+function causal(){
+  const K=ev.filter(e=>e.kind!=="tick"),S=sel!==null?ev[sel]:null;
+  if(!S){$("det").innerHTML='<p class="empty">Haz clic en un evento del diagrama para ver su pasado y su futuro.</p>'}
+  else{const pa=K.filter(e=>hb(e,S)).length,fu=K.filter(e=>hb(S,e)).length;
+    $("det").innerHTML=`<b>${P[S.p].name}</b>: ${S.txt}, L = ${S.L}, V = [${S.V.join(", ")}]<div class="det"><div><b>${pa}</b>ocurrieron antes</div><div><b>${fu}</b>ocurrieron después</div><div><b>${Math.max(0,K.length-pa-fu-1)}</b>concurrentes</div></div>${cmp2(S)}`}
+  const Ar=K.slice().sort((a,b)=>a.L-b.L||a.p-b.p),st=Math.max(0,Ar.length-14);
+  $("tot").innerHTML=Ar.slice(st).map((e,j)=>`<tr><td>${st+j+1}</td><td><b>${e.L}</b></td><td><span class="dot" style="background:${COL[e.p]}"></span>${P[e.p].name}</td><td>${e.txt}</td><td class="vec">[${e.V.join(", ")}]</td><td>${!S?"":e===S?"seleccionado":hb(e,S)?"antes":hb(S,e)?"después":"concurrente"}</td></tr>`).join("");
+}
+function chart(){
+  const E=ev.filter(e=>e.kind!=="tick").slice(-80);
+  if(E.length<2)return'<p class="empty">El gráfico aparece con los primeros eventos.</p>';
+  const W=640,H=200,pad=32,t1=E[0].t,t2=Math.max(E[E.length-1].t,t1+1);
+  let lo=Infinity,hi=-Infinity;E.forEach(e=>{lo=Math.min(lo,e.L);hi=Math.max(hi,e.L)});if(hi===lo)hi=lo+1;
+  const X=t=>pad+(t-t1)/(t2-t1)*(W-pad-10),Yc=l=>H-pad-(l-lo)/(hi-lo)*(H-pad-14);
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Evolución de los contadores"><line x1="${pad}" y1="${H-pad}" x2="${W-10}" y2="${H-pad}" stroke="var(--line)"/><line x1="${pad}" y1="8" x2="${pad}" y2="${H-pad}" stroke="var(--line)"/><text x="${pad-5}" y="${Yc(hi)+4}" text-anchor="end">${hi}</text><text x="${pad-5}" y="${Yc(lo)+4}" text-anchor="end">${lo}</text>`;
+  P.forEach((_,w)=>{let d="",last=null;E.filter(e=>e.p===w).forEach(e=>{d+=(last===null?"M":"L")+X(e.t).toFixed(1)+","+Yc(last===null?e.L:last).toFixed(1)+" L"+X(e.t).toFixed(1)+","+Yc(e.L).toFixed(1)+" ";last=e.L});s+=`<path d="${d}" fill="none" stroke="${COL[w]}" stroke-width="2.2" stroke-dasharray="${w%2?"6 3":""}"/>`});
+  return s+`</svg><div class="legend">${P.map((q,i)=>`<span><i class="dot" style="background:${COL[i]}"></i>${q.name}</span>`).join("")}</div>`;
+}
+function matrix(){
+  const N=P.length,c=P.map(()=>P.map(()=>[0,0]));
+  msgs.forEach(m=>{c[m.from][m.to][1]++;if(m.state==="done")c[m.from][m.to][0]++});
+  const mx=Math.max(1,...c.flat().map(x=>x[1]));
+  return `<div class="scroll"><table class="mx"><thead><tr><th>De ↓ / a →</th>${P.map(q=>`<th>${q.name}</th>`).join("")}</tr></thead><tbody>${c.map((r,i)=>`<tr><th style="color:${COL[i]}">${P[i].name}</th>${r.map((x,j)=>i===j?'<td class="dim">—</td>':`<td style="background:color-mix(in srgb,${COL[i]} ${Math.round(x[1]/mx*40)}%,transparent)">${x[0]} / ${x[1]}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+const MS=[
+  ["Concurrencia","Dos eventos sin relación causal entre ellos.",()=>{const K=ev.filter(e=>e.kind!=="tick").slice(-40);return K.some(a=>K.some(b=>a!==b&&!hb(a,b)&&!hb(b,a)))}],
+  ["Mensaje perdido","Pierde al menos un mensaje.",()=>lostN>0],
+  ["Error de orden","Rompe la regla y provoca una entrega fuera de orden causal.",()=>delivered>okN],
+  ["Gran desfase","Llega a una diferencia de 30 o más entre contadores.",()=>maxD>=30],
+  ["Diez entregas correctas","Entrega 10 mensajes en orden causal.",()=>okN>=10],
+  ["Cuatro procesos","Llega a una sesión con 4 o más procesos.",()=>P.length>=4],
+  ["Partición superada","Vive una partición de red y su restablecimiento.",()=>partN>0&&!down]
+];
+function missions(){
+  MS.forEach((m,i)=>{if(!doneM.has(i)&&m[2]()){doneM.add(i);status("Misión cumplida: "+m[0]+".")}});
+  $("ms").innerHTML=MS.map((m,i)=>`<li class="${doneM.has(i)?"ok":""}"><b>${m[0]}</b><br><span class="lbl">${m[1]}</span></li>`).join("");
+  $("mp").textContent=doneM.size+" de "+MS.length+" completadas";$("pgb").style.width=doneM.size/MS.length*100+"%";
+}
+function drawAll(){}
+
+function render(){
+  const N=P.length,mx=Math.max(...P.map(p=>p.L),1),sp=spread();
+  P.forEach((p,i)=>{
+    $("n"+i).textContent=p.L;$("b"+i).style.width=(p.L/mx*100)+"%";
+    $("v"+i).textContent="V = ["+p.V.join(", ")+"]";
+    $("c"+i).textContent=ev.filter(e=>e.p===i&&e.kind!=="tick").length+" eventos";
+    $("ld"+i).hidden=!(p.L===mx&&sp>0);
+    $("dl"+i).textContent=p.L===mx?"":"−"+(mx-p.L)+" del líder";
+  });
+  $("mini").innerHTML=P.map((p,i)=>`<span class="mc" style="--c:${COL[i]}">${p.name} <b>${p.L}</b></span>`).join("");
+  $("pcount").textContent=N+" procesos ("+cls().length+" clientes, "+srvs().length+" servidores)";
+  const dn=msgs.filter(m=>m.state==="done"),tot=delivered+lostN,set=(id,v)=>{$(id).textContent=v};
+  set("sMsg",delivered);set("sLost",lostN);set("sDiff",sp);set("sMax",maxD);
+  set("sOk",delivered?Math.round(okN/delivered*100)+" %":"—");
+  set("sRate",ev.filter(e=>e.kind!=="tick"&&now()-e.t<=60).length);
+  set("sLat",dn.length?(dn.reduce((a,m)=>a+m.lat,0)/dn.length/1000).toFixed(1)+" s":"—");
+  set("sLoss",tot?Math.round(lostN/tot*100)+" %":"—");set("sPart",partN);set("sDrift",driftN);
+  const l=+$("lat").value,x=+$("loss").value,nt=$("net");
+  if(down){nt.className="net bad";nt.textContent=`Partición ${P[down[0]].name} ↔ ${P[down[1]].name}`}
+  else if(x>=30||l>=2500){nt.className="net bad";nt.textContent=`Red inestable · ${l} ms · ${x} %`}
+  else if(x>=10||l>=1500){nt.className="net mid";nt.textContent=`Red congestionada · ${l} ms · ${x} %`}
+  else{nt.className="net";nt.textContent=`Red estable · ${l} ms · ${x} %`}
+  const src=$("showTick").checked?ev:ev.filter(e=>e.kind!=="tick");
+  $("lg").innerHTML=src.slice(-60).reverse().map(e=>`<tr><td>${e.t.toFixed(1)} s</td><td><span class="dot" style="background:${COL[e.p]}"></span>${P[e.p].name}</td><td>${e.txt}</td><td>${e.calc}</td><td><b>${e.L}</b></td><td>${e.d}</td></tr>`).join("");
+  const done=msgs.filter(m=>m.state!=="fly");
+  $("sy").innerHTML=done.length?done.slice(-30).reverse().map(m=>m.state==="lost"?`<div class="sy"><span class="badge bad">Perdido</span><b>#${m.id}</b> ${P[m.from].name} → ${P[m.to].name}<br>Marca T = ${m.T}. No llegó.</div>`:`<div class="sy"><span class="badge ${m.ok?"":"bad"}">${m.ok?"Orden causal correcto":"Error de orden"}</span><b>#${m.id}</b> ${P[m.from].name} → ${P[m.to].name}<br>Envía T = ${m.T}; el receptor queda en ${m.rL}. Latencia ${(m.lat/1000).toFixed(1)} s.</div>`).join(""):'<p class="empty">Aún no hay mensajes.</p>';
+  $("ch").innerHTML=chart();$("mx").innerHTML=matrix();
+  causal();missions();drawDiagram();drawCausal();
+}
+
+/* ---------- Interfaz ---------- */
+$("clocks").onclick=e=>{const b=e.target.closest("[data-act]");if(!b)return;const i=+b.dataset.i,a=b.dataset.act;if(a==="loc")local(i);else if(a==="sync")sync(i);else bcastFrom(i)};
+$("dg").onclick=e=>{const t=e.target.closest("[data-e]"),id=t?+t.dataset.e:null;
+  if(e.shiftKey&&sel!==null&&id!==null&&id!==sel){sel2=sel2===id?null:id}
+  else{sel2=null;sel=id===sel?null:id}
+  render()};
+$("addC").onclick=()=>addP("C");$("addS").onclick=()=>addP("S");
+$("rmP").onclick=()=>{if(kinds.length<=2)return status("Mínimo 2 procesos.");kinds.pop();build()};
+$("bSend").onclick=()=>send(+$("from").value,+$("to").value);
+$("bBc").onclick=bcast;
+$("bAuto").onclick=function(){const on=this.getAttribute("aria-pressed")!=="true";this.setAttribute("aria-pressed",on);clearInterval(TM.a);if(on){const go=()=>{const c=cls();if(c.length)sync(pick(c))};go();TM.a=setInterval(go,6000)}};
+$("bScn").onclick=()=>runScn($("scn").value,true);
+$("bReset").onclick=()=>build();
+$("bClear").onclick=()=>{localStorage.removeItem(KEY);build();status("Datos borrados. Se empezó una sesión nueva.")};
+$("bPause").onclick=function(){paused=!paused;this.setAttribute("aria-pressed",paused);this.textContent=paused?"Reanudar":"Pausar";sched()};
+$("bAutoAll").onclick=()=>A.on?stopAuto():startAuto();
+$("bTheme").onclick=()=>{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark"};
+$("bCsv").onclick=()=>{const rows=[["tiempo_s","proceso","evento","calculo","L","vector","dif"]].concat(ev.filter(e=>e.kind!=="tick").map(e=>[e.t.toFixed(2),P[e.p].name,e.txt,e.calc,e.L,"["+e.V.join(" ")+"]",e.d]));const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv"}));a.download="bitacora-lamport.csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+$("lat").oninput=()=>$("latV").textContent=$("lat").value+" ms";
+$("loss").oninput=()=>$("lossV").textContent=$("loss").value+" %";
+$("zoom").oninput=()=>{$("zV").textContent=$("zoom").value+" px/s";drawDiagram()};
+$("tickMs").onchange=setTick;
+["showTick","showVec","jit"].forEach(id=>$(id).onchange=render);
+$("brk").onchange=()=>status($("brk").checked?"Regla desactivada: el receptor suma 1 e ignora T.":"Regla de Lamport restaurada.");
+document.querySelectorAll("[data-pre]").forEach(b=>b.onclick=()=>{const PRE={ideal:[300,0,false],lenta:[2800,0,false],mala:[1800,30,true]}[b.dataset.pre];setNet(...PRE);status("Red "+b.textContent.toLowerCase()+": latencia "+PRE[0]+" ms, pérdida "+PRE[1]+" %.");sched()});
+document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>$(b.dataset.go).scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"}));
+document.addEventListener("keydown",e=>{
+  if(e.target.closest("input,select,textarea,button")||e.metaKey||e.ctrlKey||e.altKey)return;
+  const k=e.key.toLowerCase();
+  if(k===" "){e.preventDefault();$("bPause").click()}
+  else if(k==="m")$("bAutoAll").click();
+  else if(/^[1-8]$/.test(k)&&+k<=P.length)local(+k-1);
+});
+
+/* ---------- Reto ---------- */
+let Q,qOk=0,qN=0;
+function newQ(f){const a=ri(0,19),t=ri(1,20);Q={a,t,r:Math.max(a,t)+1};$("qt").innerHTML=`Un proceso tiene <b>L = ${a}</b> y recibe un mensaje con <b>T = ${t}</b>. ¿Cuánto vale su reloj después de la recepción?`;$("qa").value="";$("qf").textContent="";$("qf").className="fb";if(f)$("qa").focus()}
+$("qb").onclick=()=>{const v=parseInt($("qa").value,10);if(isNaN(v)){$("qf").className="fb bad";$("qf").textContent="Escribe un número.";return}qN++;const ok=v===Q.r;if(ok)qOk++;$("qf").className="fb "+(ok?"ok":"bad");$("qf").textContent=(ok?"Correcto: ":"No es "+v+". ")+`máx(${Q.a}, ${Q.t}) + 1 = ${Q.r}.`;$("qs").textContent=qOk+" de "+qN+" correctas"};
+$("qn").onclick=()=>newQ(true);$("qa").onkeydown=e=>{if(e.key==="Enter")$("qb").click()};
+newQ(false);
+
+/* ---------- Mapa de causalidad ---------- */
+function drawCausal(){
+  const el=$("cg"),N=P.length,K=ev.filter(e=>e.kind!=="tick");
+  if(K.length<2){el.innerHTML='<p class="empty">El mapa aparece con los primeros eventos.</p>';return}
+  const V=K.slice(-45),S=sel!==null?ev[sel]:null,W=900,LX=130,LY=64,Yy=i=>40+i*LY,H=Yy(N-1)+40;
+  const Ls=V.map(e=>e.L),lo=Math.min(...Ls),hi=Math.max(...Ls,lo+1),X=L=>LX+(L-lo)/(hi-lo)*(W-LX-40);
+  const rel=e=>!S?"":e===S?"s":hb(e,S)?"p":hb(S,e)?"f":"c";
+  const pos=e=>({x:X(e.L),y:Yy(e.p)}),inV=new Set(V.map(e=>e.i));
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Mapa de causalidad"><defs><marker id="cga" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="var(--ink)"/></marker></defs>`;
+  for(let i=0;i<N;i++)s+=`<line x1="${LX-20}" y1="${Yy(i)}" x2="${W-20}" y2="${Yy(i)}" stroke="${COL[i]}" stroke-opacity=".3" stroke-width="1.5"/><text x="8" y="${Yy(i)+5}" font-weight="700" style="fill:${COL[i]}">${P[i].name}</text>`;
+  const last={};
+  V.forEach(e=>{const pr=last[e.p];if(pr){const a=pos(pr),b=pos(e),hot=!!S&&rel(pr)!=="c"&&rel(e)!=="c";s+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${hot?"var(--ink)":COL[e.p]}" stroke-width="${hot?2.4:1.6}" opacity="${S&&!hot?.25:.7}"/>`}last[e.p]=e});
+  msgs.forEach(m=>{if(m.state!=="done"||!inV.has(m.sE)||!inV.has(m.rE))return;const a=pos(ev[m.sE]),b=pos(ev[m.rE]),hot=!!S&&rel(ev[m.sE])!=="c"&&rel(ev[m.rE])!=="c";s+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${COL[m.from]}" stroke-width="${hot?3:2}" opacity="${S&&!hot?.25:1}" marker-end="url(#cga)"/>`});
+  V.forEach(e=>{
+    const p=pos(e),r=rel(e),c=COL[e.p],op=r==="c"?.2:1,halo=r==="p"?"var(--acc)":r==="f"?"var(--mid)":"";
+    const shape=e.kind==="local"?`<rect x="${p.x-7}" y="${p.y-7}" width="14" height="14" rx="2" fill="${e.txt.startsWith("Salto")?"var(--warn)":c}"/>`:e.kind==="send"?`<circle cx="${p.x}" cy="${p.y}" r="7" fill="${c}"/>`:`<circle cx="${p.x}" cy="${p.y}" r="7" fill="var(--surf)" stroke="${c}" stroke-width="3"/>`;
+    s+=`<g opacity="${op}" class="sel" data-e="${e.i}"><title>${P[e.p].name} · ${e.txt} · L=${e.L} · V=[${e.V}]</title>${halo?`<circle cx="${p.x}" cy="${p.y}" r="13" fill="${halo}" opacity=".2"/>`:""}${e===S?`<circle cx="${p.x}" cy="${p.y}" r="15" fill="none" stroke="var(--ink)" stroke-width="2.5"/>`:""}${shape}<text x="${p.x}" y="${p.y-12}" text-anchor="middle" font-weight="700">${e.L}</text></g>`;
+  });
+  el.innerHTML=s+"</svg>";
+}
+$("cg").onclick=e=>{const t=e.target.closest("[data-e]"),id=t?+t.dataset.e:null;if(e.shiftKey&&sel!==null&&id!==null&&id!==sel){sel2=sel2===id?null:id}else{sel2=null;sel=id===sel?null:id}render()};
+
+/* ---------- Datos automáticos: guardado y restauración ---------- */
+const KEY="lamport-lab-v2",CFG=["fTraffic","fChaos","fPart","fDrift","fScn","fInit","fRestart","inten","lat","loss","zoom","tickMs","jit","showTick","brk","showVec"];
+function save(){
+  try{
+    const cfg={};CFG.forEach(id=>{const el=$(id);if(el)cfg[id]=el.type==="checkbox"?el.checked:el.value});
+    localStorage.setItem(KEY,JSON.stringify({v:2,kinds,P,ev,msgs:msgs.filter(m=>m.state!=="fly"),n,el:now(),stats:[delivered,okN,lostN,partN,driftN,maxD],doneM:[...doneM],feed,qOk,qN,cfg,paused}));
+    $("sv").textContent="Guardado automático · "+new Date().toLocaleTimeString("es-PE",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  }catch(e){$("sv").textContent="No se pudo guardar (almacenamiento lleno o bloqueado)"}
+}
+function restore(){
+  let d=null;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+  if(!d||d.v!==2||!Array.isArray(d.P))return false;
+  kinds=d.kinds;build();
+  P=d.P;ev=d.ev;msgs=d.msgs;n=d.n;t0=Date.now()-d.el*1000;
+  delivered=d.stats[0];okN=d.stats[1];lostN=d.stats[2];partN=d.stats[3];driftN=d.stats[4];maxD=d.stats[5];
+  doneM=new Set(d.doneM);feed=d.feed||[];qOk=d.qOk||0;qN=d.qN||0;
+  Object.entries(d.cfg).forEach(([id,v])=>{const el=$(id);if(!el)return;if(el.type==="checkbox")el.checked=v;else el.value=v});
+  paused=!!d.paused;$("bPause").setAttribute("aria-pressed",paused);$("bPause").textContent=paused?"Reanudar":"Pausar";
+  $("latV").textContent=$("lat").value+" ms";$("lossV").textContent=$("loss").value+" %";$("zV").textContent=$("zoom").value+" px/s";
+  $("qs").textContent=qN?qOk+" de "+qN+" correctas":"Aún no has respondido.";
+  status("Sesión restaurada desde este navegador.");render();return true;
+}
+
+/* ---------- Arranque ---------- */
+const RESTORED=restore();if(!RESTORED)build();setTick();
+setInterval(countdown,1000);setInterval(save,2000);addEventListener("pagehide",save);
+setInterval(()=>{if(msgs.some(m=>m.state==="fly"))drawDiagram()},300);
+if(!RESTORED)setNet(ri(3,15)*100,pick([0,0,5,10]),Math.random()<.4);
+startAuto();
+</script>
+</body>
+</html>
